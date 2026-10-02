@@ -3,7 +3,7 @@
 import { LayoutDashboard, LogOut, Menu, Stethoscope, Users, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useLogout } from "@/hooks/queries/use-auth-actions";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -87,10 +87,6 @@ function UserCard() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const pathname = usePathname();
-
-  // Close the mobile drawer whenever the route changes.
-  useEffect(() => setMobileOpen(false), [pathname]);
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">

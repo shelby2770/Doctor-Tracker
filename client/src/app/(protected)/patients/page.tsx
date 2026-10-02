@@ -13,7 +13,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { useDoctors } from "@/hooks/queries/use-doctors";
+import { useDoctorSelectList } from "@/hooks/queries/use-doctors";
 import {
   useCreatePatient,
   useDeletePatient,
@@ -57,9 +57,9 @@ export default function PatientsPage() {
   const { data: options } = usePatientFilterOptions();
 
   // All doctors (for the "assigned doctor" dropdown in the form).
-  const { data: doctorsData } = useDoctors({ limit: 1000, sort: "name_asc" });
+  const { data: doctorsData } = useDoctorSelectList();
   const doctorOptions = useMemo(
-    () => (doctorsData?.data ?? []).map((d) => ({ id: d._id, name: d.name })),
+    () => (doctorsData ?? []).map((d) => ({ id: d._id, name: d.name })),
     [doctorsData],
   );
 

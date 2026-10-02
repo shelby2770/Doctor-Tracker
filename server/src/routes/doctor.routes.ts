@@ -5,6 +5,7 @@ import {
   deleteDoctor,
   getDoctor,
   getDoctorFilterOptions,
+  getDoctorSelectList,
   listDoctorPatients,
   listDoctors,
   updateDoctor,
@@ -28,6 +29,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/meta/options', getDoctorFilterOptions);
+router.get('/meta/list', getDoctorSelectList);
 
 router
   .route('/')

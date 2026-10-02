@@ -10,6 +10,7 @@ export const queryKeys = {
     patients: (id: string, params: unknown) =>
       ["doctors", id, "patients", params] as const,
     options: ["doctors", "options"] as const,
+    selectList: ["doctors", "select-list"] as const,
   },
 
   patients: {

@@ -84,6 +84,20 @@ export function useDoctorPatients(doctorId: string, params: DoctorPatientParams)
   });
 }
 
+/** Lightweight list of all doctors ({_id, name, specialization}) for selects. */
+export function useDoctorSelectList() {
+  return useQuery({
+    queryKey: queryKeys.doctors.selectList,
+    queryFn: async () => {
+      const { data } = await api.get<
+        ApiItemResponse<Pick<Doctor, "_id" | "name" | "specialization">[]>
+      >("/doctors/meta/list");
+      return data.data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useDoctorFilterOptions() {
   return useQuery({
     queryKey: queryKeys.doctors.options,

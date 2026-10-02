@@ -234,6 +234,7 @@ All routes are prefixed with `/api`. Everything except `POST /auth/login` requir
 | GET    | `/doctors/:id/patients` | List a doctor's patients |
 | POST   | `/doctors/:id/patients` | Add a patient under a doctor |
 | GET    | `/doctors/meta/options` | Distinct specializations/hospitals (filters) |
+| GET    | `/doctors/meta/list` | Lightweight `{_id, name, specialization}` list for selects |
 | GET    | `/patients` | List (search, filters, sort, pagination) |
 | POST   | `/patients` | Create a patient |
 | GET/PATCH/DELETE | `/patients/:id` | Get / update / delete a patient |

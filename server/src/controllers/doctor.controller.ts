@@ -132,6 +132,19 @@ export const addDoctorPatient = asyncHandler(async (req: Request, res: Response)
   res.status(201).json({ success: true, data: patient });
 });
 
+// GET /api/doctors/meta/list  — lightweight {id, name, specialization} for
+// "assign doctor" dropdowns. Projected + lean, so it stays small even with
+// many doctors (no pagination needed for a select list).
+export const getDoctorSelectList = asyncHandler(
+  async (_req: Request, res: Response) => {
+    const doctors = await Doctor.find()
+      .select('name specialization')
+      .sort({ name: 1 })
+      .lean();
+    res.json({ success: true, data: doctors });
+  },
+);
+
 // GET /api/doctors/meta/options  — distinct values for filter dropdowns
 export const getDoctorFilterOptions = asyncHandler(
   async (_req: Request, res: Response) => {
