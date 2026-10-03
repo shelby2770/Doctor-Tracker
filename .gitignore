@@ -31,3 +31,7 @@ coverage/
 
 # Local (no-Docker) MongoDB data
 .mongo-data/
+
+# Credentials — never commit
+atlas-credentials.env
+*credentials*.env
