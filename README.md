@@ -5,6 +5,18 @@ fast search / filtering, clean CRUD workflows, and an analytics dashboard. Built
 independent applications — a **Next.js** client and a standalone **Express + MongoDB**
 REST API.
 
+## 🔗 Live Demo
+
+| | URL |
+| --- | --- |
+| **App (Vercel)** | https://doctor-tracker-opal-tau.vercel.app |
+| **API (Render)** | https://doctor-tracker-api-apfe.onrender.com/api/health |
+
+**Demo login:** `admin@doctortracker.com` · `Admin@12345`
+
+> ⏳ The API runs on Render's free tier, which sleeps after ~15 min idle — the **first
+> request can take ~30–50s** to cold-start. If login seems to hang, give it a moment and retry.
+
 ---
 
 ## 1. Description (Elevator Pitch)
@@ -32,8 +44,9 @@ both desktop and mobile.
 | **Icons / Toast**| lucide-react, Sonner |
 | **API**          | Node.js, Express, TypeScript (RESTful) |
 | **Database**     | MongoDB + Mongoose (indexed) |
-| **Auth**         | JWT in an httpOnly cookie, bcrypt password hashing |
+| **Auth**         | JWT — httpOnly cookie (primary) + `Authorization: Bearer` fallback, bcrypt hashing |
 | **Validation**   | Zod (shared shape on client & server) |
+| **Hosting**      | Vercel (client) · Render (API) · MongoDB Atlas (database) |
 
 ---
 
@@ -41,7 +54,8 @@ both desktop and mobile.
 
 **Authentication**
 - Secure email/password login; passwords hashed with bcrypt.
-- JWT issued in an **httpOnly** cookie; every protected API route is guarded server-side.
+- JWT issued in an **httpOnly** cookie, with a **Bearer-token fallback** for browsers that
+  block cross-site cookies. Every protected API route is guarded server-side.
 - Login rate-limiting; client-side route guard for UX redirects.
 
 **Doctor Management**
@@ -64,26 +78,23 @@ both desktop and mobile.
 
 **UX**
 - Responsive layout (collapsible sidebar → mobile drawer), skeleton loaders, empty states,
-  optimistic-feeling cache updates, toasts, and accessible focus states.
+  cache-driven updates, toasts, and accessible focus states.
 
 ---
 
-## 4. Setup Guide
+## 4. Setup Guide (Local)
 
 ### Prerequisites
 - **Node.js ≥ 20.9**
 - **MongoDB** — via Docker *(recommended)* **or** the built-in no-Docker fallback (below)
 
-### 1) Clone & configure environment
-
+### 1) Configure environment
 ```bash
-# from the project root
 cp server/.env.example server/.env
 cp client/.env.example client/.env.local
 ```
 
 `server/.env.example`:
-
 ```env
 PORT=4000
 NODE_ENV=development
@@ -97,56 +108,30 @@ ADMIN_PASSWORD=Admin@12345
 ```
 
 `client/.env.example`:
-
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ```
 
-### 2) Install dependencies
-
+### 2) Install
 ```bash
 npm run install:all
-# (or: cd server && npm i   then   cd ../client && npm i)
 ```
 
 ### 3) Start MongoDB
-
-**Option A — Docker (recommended)**
-
 ```bash
-npm run db:up      # docker compose up -d  (MongoDB 7 on :27017)
+npm run db:up      # Docker (docker compose up -d), MongoDB 7 on :27017
+# — or, without Docker —
+npm run db:local   # persistent local MongoDB on :27017 (data in server/.mongo-data)
 ```
 
-**Option B — No Docker**
-
-Starts a real, on-disk MongoDB using a binary that is downloaded & cached automatically on
-first run. Keep it running in its own terminal:
-
+### 4) Seed & run
 ```bash
-npm run db:local   # MongoDB on :27017, data persisted in server/.mongo-data
+npm run seed       # admin account + sample doctors/patients (spread over 6 months)
+npm run dev        # API :4000 + client :3000
 ```
+Open **http://localhost:3000** and sign in with the demo credentials above.
 
-### 4) Seed the database
-
-Creates the admin account plus realistic sample doctors & patients (spread over 6 months so
-the charts are meaningful):
-
-```bash
-npm run seed
-```
-
-### 5) Run the apps
-
-```bash
-npm run dev        # runs the API (:4000) and the client (:3000) together
-```
-
-Open **http://localhost:3000** and sign in:
-
-> **Email:** `admin@doctortracker.com`  **Password:** `Admin@12345`
-
-### Handy scripts (root `package.json`)
-
+### Scripts (root `package.json`)
 | Script | What it does |
 | ------ | ------------ |
 | `npm run install:all` | Install client + server deps |
@@ -164,37 +149,36 @@ Two independently deployable apps communicate over a REST boundary:
 
 ```
 ┌───────────────────────────┐        HTTP (REST, JSON)        ┌───────────────────────────┐
-│      Next.js Client        │   ───────────────────────────► │     Express REST API       │
-│   (App Router, :3000)      │   ◄─────────────────────────── │        (:4000)             │
-│                            │     httpOnly JWT cookie         │                            │
-│  • Pages (dashboard/       │                                 │  routes → middleware →     │
-│    doctors/patients/login) │                                 │  controllers → Mongoose    │
-│  • TanStack Query cache    │                                 │                            │
-│  • Axios (withCredentials) │                                 │  • authenticate (JWT)      │
-│  • React Hook Form + Zod   │                                 │  • validate (Zod)          │
-│  • Recharts visualizations │                                 │  • central error handler   │
-└───────────────────────────┘                                 └─────────────┬─────────────┘
-                                                                             │ Mongoose (pooled)
-                                                                             ▼
-                                                                  ┌────────────────────┐
-                                                                  │      MongoDB        │
-                                                                  │ users / doctors /   │
-                                                                  │ patients (indexed)  │
-                                                                  └────────────────────┘
+│   Next.js Client (Vercel)  │   ───────────────────────────► │  Express REST API (Render) │
+│                            │   ◄─────────────────────────── │                            │
+│  • Pages: dashboard /      │   httpOnly cookie  OR           │  routes → middleware →     │
+│    doctors / patients /    │   Authorization: Bearer <jwt>   │  controllers → Mongoose    │
+│    login                   │                                 │                            │
+│  • TanStack Query cache    │                                 │  • authenticate (JWT)      │
+│  • Axios (withCredentials  │                                 │  • validate (Zod)          │
+│    + Bearer interceptor)   │                                 │  • central error handler   │
+│  • React Hook Form + Zod   │                                 │                            │
+│  • Recharts visualizations │                                 └─────────────┬─────────────┘
+└───────────────────────────┘                                               │ Mongoose (pooled)
+                                                                            ▼
+                                                                 ┌────────────────────┐
+                                                                 │  MongoDB (Atlas)    │
+                                                                 │ users / doctors /   │
+                                                                 │ patients (indexed)  │
+                                                                 └────────────────────┘
 ```
 
-**Request flow (example: `GET /api/doctors?search=...&page=2`)**
-1. Client builds a cleaned query object and calls the API via Axios (`withCredentials`).
-2. Express runs `authenticate` (verifies the JWT cookie) → `validate` (Zod coerces/validates
-   query params) → the doctor controller.
+**Request flow (`GET /api/doctors?search=...&page=2`)**
+1. Client builds a cleaned query object and calls the API (cookie + Bearer attached).
+2. Express runs `authenticate` (verifies JWT) → `validate` (Zod coerces/validates query) →
+   the doctor controller.
 3. The controller builds a Mongo filter (text search + filters + date range), runs the page
-   query and the count **in parallel** (`.lean()` for plain objects), attaches per-page
-   patient counts via an aggregation, and returns `{ data, meta }`.
+   query and the count **in parallel** (`.lean()`), attaches per-page patient counts via an
+   aggregation, and returns `{ data, meta }`.
 4. TanStack Query caches the result by a structured key and keeps the previous page visible
-   while the next one loads.
+   while the next loads.
 
 **Folder structure**
-
 ```
 Doctor Tracker/
 ├── server/                     # Express REST API (TypeScript)
@@ -212,18 +196,18 @@ Doctor Tracker/
 │       ├── app/                # routes: login, (protected)/{dashboard,doctors,patients}
 │       ├── components/         # ui/, layout/, charts/, doctors/, patients/, providers/
 │       ├── hooks/              # React Query hooks + useDebounce
-│       └── lib/                # api client, types, schemas, query keys, utils
-├── docker-compose.yml          # MongoDB 7
+│       └── lib/                # api client, auth-token, types, schemas, query keys, utils
+├── render.yaml                 # Render blueprint for the API
+├── docker-compose.yml          # MongoDB 7 (local)
 └── README.md
 ```
 
 ### API Reference
-
 All routes are prefixed with `/api`. Everything except `POST /auth/login` requires auth.
 
 | Method | Endpoint | Description |
 | ------ | -------- | ----------- |
-| POST   | `/auth/login` | Log in, set httpOnly cookie |
+| POST   | `/auth/login` | Log in, set httpOnly cookie, return `{ user, token }` |
 | POST   | `/auth/logout` | Clear the auth cookie |
 | GET    | `/auth/me` | Current user |
 | GET    | `/doctors` | List (search, filters, sort, pagination) |
@@ -245,68 +229,79 @@ All routes are prefixed with `/api`. Everything except `POST /auth/login` requir
 
 ## 6. Technical Decisions (Deep Dive)
 
-### Decision 1 — TanStack Query (React Query) for server state, not Redux/Context
+### Decision 1 — TanStack Query for server state, not Redux/Context
+Almost all state here is *server state*: lists of doctors/patients, dashboard metrics, the
+current user — asynchronous, shared across pages, and needing to stay consistent after every
+mutation. Redux would mean hand-writing thunks, loading flags and cache invalidation for
+every resource (largely re-implementing a cache); a single global Context re-renders every
+consumer on any change. TanStack Query instead gives us request **deduplication** and
+**caching** (keyed by `['doctors','list',params]`), `staleTime` to avoid redundant refetches,
+**`keepPreviousData`** so paginated tables don't flash empty, declarative loading/error
+states, and targeted **invalidation** (creating a patient invalidates the patient list, the
+doctor list, *and* the dashboard in one place). Components re-render only for the queries they
+subscribe to — directly satisfying the "avoid unnecessary re-renders" requirement. Local UI
+state (modals, filter inputs) stays in `useState`.
 
-**Context.** Almost all state in this app is *server state*: lists of doctors/patients,
-dashboard metrics, the current user. That data is asynchronous, shared across pages, and
-must stay consistent after every create/update/delete.
-
-**Why not Redux or Context?** Redux would mean hand-writing async thunks, loading/error
-flags, cache bookkeeping and invalidation for every resource — a lot of boilerplate that
-mostly re-implements a cache. A single global Context holding all data causes every consumer
-to re-render on any change and still leaves caching/refetching to us.
-
-**What we chose & why.** TanStack Query treats the server as the source of truth and gives us,
-for free: request **deduplication** and **caching** (keyed by `['doctors','list',params]`),
-`staleTime` to avoid redundant refetches, **`keepPreviousData`** so paginated/filtered tables
-don't flash empty while the next page loads, declarative **loading/error** states, and
-targeted **invalidation** — e.g. creating a patient invalidates the patient list, the doctor
-list (counts) *and* the dashboard in one place. Components only re-render for the queries they
-subscribe to, which directly satisfies the "avoid unnecessary re-renders" requirement.
-Lightweight client UI state (modals, filter inputs) stays in local `useState`, and auth is a
-thin Context wrapper around a `me` query.
-
-### Decision 2 — Separate Express backend with an httpOnly-cookie JWT
-
-**Context.** The spec calls for a standalone Node/Express REST API and a separate Next.js
-client. That means the browser talks cross-origin (`:3000` → `:4000`) and we must choose how
-to carry the session.
-
-**The options.** (a) JWT in `localStorage` + `Authorization` header, or (b) JWT in an
-**httpOnly cookie**.
-
-**What we chose & why.** We issue the JWT in an **httpOnly, SameSite** cookie. It is never
-readable by JavaScript, which removes the most common token-theft vector (XSS), and the
-browser attaches it automatically — Axios just needs `withCredentials: true` and the API sets
-`cors({ credentials: true })`. Because the client and API are different origins, protection is
-layered correctly: the **real** boundary is server-side — every protected route runs the
-`authenticate` middleware and rejects invalid/missing tokens (verified in testing, e.g.
-`GET /doctors` returns `401` without a cookie). The client-side `AuthGuard` is purely a UX
-concern (redirect to `/login`, show a spinner), never the security mechanism. The API also
-returns the token in the login body so non-browser clients (e.g. mobile) can use the
-`Authorization: Bearer` fallback.
+### Decision 2 — Separate Express backend with JWT: httpOnly cookie + Bearer fallback
+With a standalone API, the browser talks cross-origin (Vercel → Render), so the session
+transport matters. We issue the JWT in an **httpOnly, `SameSite=None; Secure` cookie** — not
+readable by JavaScript (removes the main XSS token-theft vector) and sent automatically
+(`withCredentials` + `cors({ credentials: true })`). Because some browsers (Safari/Firefox)
+block cross-site cookies by default, the login response **also returns the token**, which the
+client stores and attaches as `Authorization: Bearer` via an axios interceptor — so auth works
+in every browser. Either way the **real security boundary is server-side**: every protected
+route runs the `authenticate` middleware (cookie first, Bearer fallback) and rejects
+missing/invalid tokens (verified: `GET /doctors` → `401` without credentials). The client
+`AuthGuard` is purely a UX redirect, never the security mechanism. *Trade-off:* the fallback
+token lives in `localStorage` (JS-readable) — the accepted cost of cross-site auth everywhere.
 
 ### Bonus — Query optimization & indexing
-
 - **Indexes matched to access patterns:** text indexes for search
   (`doctor{name,specialization,hospital}`, `patient{name,condition}`), single-field indexes
-  for filter dropdowns (specialization, hospital, condition, status), a `createdAt` index for
-  date-range filtering + default sort, and a compound `{doctor, createdAt}` index so a
-  doctor's patients come back pre-sorted.
-- **Lean reads** (`.lean()`) return plain objects for list endpoints (no hydration overhead).
-- **Parallelism:** page query + count (+ aggregations) run via `Promise.all`.
-- **Dashboard** uses aggregation pipelines (`$group`, `$lookup`) so counts happen in the DB,
-  not by shipping rows to Node.
-- **Client:** debounced search (400 ms), `keepPreviousData` pagination, memoized derived data.
+  for filter dropdowns, a `createdAt` index for date-range + default sort, and a compound
+  `{doctor, createdAt}` index so a doctor's patients come back pre-sorted.
+- **Lean reads** (`.lean()`) for list endpoints; **parallelism** (page query + count +
+  aggregations via `Promise.all`); **dashboard** uses `$group`/`$lookup` pipelines so counting
+  happens in the DB, not in Node.
+- **Client:** debounced search (400 ms), `keepPreviousData` pagination, memoized derived data,
+  and a dedicated lightweight `/doctors/meta/list` endpoint for selects.
 
 ---
 
-## 7. Visual Evidence
+## 7. Deployment
 
-> Screenshots of the running application (desktop & mobile).
+Hosted as two services + a managed database:
+
+| Piece | Host | Why |
+| ----- | ---- | --- |
+| Database | **MongoDB Atlas** (free M0) | Managed, reachable from the cloud |
+| Backend API | **Render** (Web Service, free) | Runs a long-lived Express server — no serverless refactor |
+| Frontend | **Vercel** | First-class Next.js hosting |
+
+> A standalone Express app fits Render's always-on model far better than Vercel's serverless
+> functions, which is why the API goes to Render and only the Next.js client goes to Vercel.
+
+**Backend (Render)** — *New + → Blueprint* → pick this repo (it contains [`render.yaml`](render.yaml)) → set:
+- `MONGODB_URI` = your Atlas URI (include the `/doctor_tracker` database name)
+- `CLIENT_URL` = your Vercel URL (comma-separate to also allow `http://localhost:3000`)
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` = **strong production credentials** (optional if the DB is
+  already seeded). `JWT_SECRET` is auto-generated; `PORT` is provided by Render.
+- Health check: `/api/health`.
+
+**Seed Atlas once** — point the seeder at the Atlas URI and run `npm run seed` (locally or
+from Render's Shell). Re-running **resets** the data.
+
+**Frontend (Vercel)** — *Add New → Project* → import the repo → **Root Directory** = `client`
+→ set `NEXT_PUBLIC_API_URL = https://<your-render-app>.onrender.com/api` → deploy.
+
+**Wire them** — set Render's `CLIENT_URL` to your Vercel origin and redeploy so CORS accepts
+the frontend. (The server tolerates a trailing slash on `CLIENT_URL`.)
+
+---
+
+## 8. Visual Evidence
 
 ### Desktop
-
 | Dashboard | Doctors |
 | --------- | ------- |
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Doctors](docs/screenshots/doctors.png) |
@@ -320,63 +315,11 @@ returns the token in the login body so non-browser clients (e.g. mobile) can use
 | ![Login](docs/screenshots/login.png) | ![Add patient](docs/screenshots/patient-form.png) |
 
 ### Mobile
-
 | Dashboard | Doctors | Menu |
 | --------- | ------- | ---- |
 | ![Mobile dashboard](docs/screenshots/mobile-dashboard.png) | ![Mobile doctors](docs/screenshots/mobile-doctors.png) | ![Mobile menu](docs/screenshots/mobile-menu.png) |
 
 ---
-
-## 8. Deployment
-
-Hosted as two services + a managed database:
-
-| Piece | Host | Why |
-| ----- | ---- | --- |
-| Database | **MongoDB Atlas** (free M0) | Managed, reachable from the cloud |
-| Backend API | **Render** (Web Service, free) | Runs a long-lived Express server directly — no serverless refactor |
-| Frontend | **Vercel** | First-class Next.js hosting |
-
-> A standalone Express app fits Render's always-on model far better than Vercel's
-> serverless functions, which is why the API goes to Render and only the Next.js
-> client goes to Vercel.
-
-### 1) MongoDB Atlas
-1. Create a free **M0** cluster → **Database Access**: add a user (username + password).
-2. **Network Access** → Add IP → **Allow access from anywhere** (`0.0.0.0/0`).
-3. **Connect → Drivers** → copy the URI, e.g.
-   `mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/doctor_tracker`
-   (keep the `/doctor_tracker` database name).
-
-### 2) Backend → Render
-1. **New + → Blueprint**, pick this repo (it contains [`render.yaml`](render.yaml)).
-2. Fill the prompted secrets:
-   - `MONGODB_URI` = your Atlas URI
-   - `CLIENT_URL` = your Vercel URL (set after step 3; you can put a placeholder first, then update)
-   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` = **choose strong production credentials**
-3. Deploy → note the URL, e.g. `https://doctor-tracker-api.onrender.com`.
-   Verify `https://…onrender.com/api/health` returns `{"success":true,...}`.
-
-### 3) Seed the Atlas database (once)
-From your machine, point the seed at Atlas and run it:
-```bash
-# server/.env  → set MONGODB_URI to the Atlas URI + your ADMIN_* values, then:
-npm run seed
-```
-(or run `npm run seed` from Render's **Shell** tab). This creates the admin user + sample data. Re-running **resets** the data, so only run it when you want a fresh dataset.
-
-### 4) Frontend → Vercel
-1. **Add New → Project**, import this repo.
-2. **Root Directory** → `client`.
-3. **Environment Variables** → `NEXT_PUBLIC_API_URL = https://<your-render-app>.onrender.com/api`
-4. Deploy → note the URL, e.g. `https://doctor-tracker.vercel.app`.
-
-### 5) Wire them together
-Set the Render service's **`CLIENT_URL`** to your Vercel URL (comma-separate to also allow localhost), then redeploy the Render service so CORS accepts the frontend. Log in at the Vercel URL with your admin credentials.
-
-**Notes**
-- Auth uses a cross-site `SameSite=None; Secure` httpOnly cookie — works in Chrome/Edge. Safari/Firefox block third-party cookies by default; if you need those, I can switch the client to the `Authorization: Bearer` token the API already returns.
-- Render's free tier sleeps after ~15 min idle, so the first request after idle has a cold start (~30–50s).
 
 ## 9. Evaluation Notes
 
@@ -384,5 +327,5 @@ Set the Render service's **`CLIENT_URL`** to your Vercel URL (comma-separate to 
   controllers / routes) on the server; `ui` / `layout` / `charts` / feature folders +
   reusable hooks on the client.
 - **Scalability:** stateless API (JWT) scales horizontally; indexes + pagination keep queries
-  bounded; filter-option endpoints avoid loading whole collections; the REST contract lets the
-  client and API scale and deploy independently.
+  bounded; filter-option/select endpoints avoid loading whole collections; the REST contract
+  lets the client and API scale and deploy independently.

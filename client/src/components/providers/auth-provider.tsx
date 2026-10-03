@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, use, type ReactNode } from "react";
 import { api } from "@/lib/api";
+import { clearToken } from "@/lib/auth-token";
 import type { ApiItemResponse, User } from "@/lib/types";
 
 interface AuthContextValue {
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
     clear: () => {
+      clearToken();
       queryClient.setQueryData(["auth", "me"], null);
       queryClient.clear();
     },

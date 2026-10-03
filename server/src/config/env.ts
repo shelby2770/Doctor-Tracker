@@ -33,7 +33,9 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
 
-/** Allowed browser origins for CORS, parsed from the CLIENT_URL list. */
+/** Allowed browser origins for CORS, parsed from the CLIENT_URL list.
+ *  Trailing slashes are stripped so "https://app.vercel.app/" still matches the
+ *  browser's slash-less Origin header. */
 export const clientOrigins = env.CLIENT_URL.split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean);
