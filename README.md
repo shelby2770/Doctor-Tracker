@@ -327,7 +327,58 @@ returns the token in the login body so non-browser clients (e.g. mobile) can use
 
 ---
 
-## 8. Evaluation Notes
+## 8. Deployment
+
+Hosted as two services + a managed database:
+
+| Piece | Host | Why |
+| ----- | ---- | --- |
+| Database | **MongoDB Atlas** (free M0) | Managed, reachable from the cloud |
+| Backend API | **Render** (Web Service, free) | Runs a long-lived Express server directly — no serverless refactor |
+| Frontend | **Vercel** | First-class Next.js hosting |
+
+> A standalone Express app fits Render's always-on model far better than Vercel's
+> serverless functions, which is why the API goes to Render and only the Next.js
+> client goes to Vercel.
+
+### 1) MongoDB Atlas
+1. Create a free **M0** cluster → **Database Access**: add a user (username + password).
+2. **Network Access** → Add IP → **Allow access from anywhere** (`0.0.0.0/0`).
+3. **Connect → Drivers** → copy the URI, e.g.
+   `mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/doctor_tracker`
+   (keep the `/doctor_tracker` database name).
+
+### 2) Backend → Render
+1. **New + → Blueprint**, pick this repo (it contains [`render.yaml`](render.yaml)).
+2. Fill the prompted secrets:
+   - `MONGODB_URI` = your Atlas URI
+   - `CLIENT_URL` = your Vercel URL (set after step 3; you can put a placeholder first, then update)
+   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` = **choose strong production credentials**
+3. Deploy → note the URL, e.g. `https://doctor-tracker-api.onrender.com`.
+   Verify `https://…onrender.com/api/health` returns `{"success":true,...}`.
+
+### 3) Seed the Atlas database (once)
+From your machine, point the seed at Atlas and run it:
+```bash
+# server/.env  → set MONGODB_URI to the Atlas URI + your ADMIN_* values, then:
+npm run seed
+```
+(or run `npm run seed` from Render's **Shell** tab). This creates the admin user + sample data. Re-running **resets** the data, so only run it when you want a fresh dataset.
+
+### 4) Frontend → Vercel
+1. **Add New → Project**, import this repo.
+2. **Root Directory** → `client`.
+3. **Environment Variables** → `NEXT_PUBLIC_API_URL = https://<your-render-app>.onrender.com/api`
+4. Deploy → note the URL, e.g. `https://doctor-tracker.vercel.app`.
+
+### 5) Wire them together
+Set the Render service's **`CLIENT_URL`** to your Vercel URL (comma-separate to also allow localhost), then redeploy the Render service so CORS accepts the frontend. Log in at the Vercel URL with your admin credentials.
+
+**Notes**
+- Auth uses a cross-site `SameSite=None; Secure` httpOnly cookie — works in Chrome/Edge. Safari/Firefox block third-party cookies by default; if you need those, I can switch the client to the `Authorization: Bearer` token the API already returns.
+- Render's free tier sleeps after ~15 min idle, so the first request after idle has a cold start (~30–50s).
+
+## 9. Evaluation Notes
 
 - **Code structure:** clear separation (config / models / validators / middleware /
   controllers / routes) on the server; `ui` / `layout` / `charts` / feature folders +

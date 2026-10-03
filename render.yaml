@@ -1,0 +1,35 @@
+# Render Blueprint for the Doctor Tracker API (Express + MongoDB).
+# In Render: New + → Blueprint → pick this repo. Set the `sync: false`
+# variables (MONGODB_URI, CLIENT_URL, ADMIN_EMAIL, ADMIN_PASSWORD) in the
+# dashboard — they are secrets / environment-specific.
+services:
+  - type: web
+    name: doctor-tracker-api
+    runtime: node
+    rootDir: server
+    plan: free
+    # --include=dev so TypeScript is available to compile the build.
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ADMIN_NAME
+        value: Admin User
+      # Render generates a strong secret automatically.
+      - key: JWT_SECRET
+        generateValue: true
+      # Set these in the Render dashboard (secrets / environment-specific):
+      - key: MONGODB_URI        # mongodb+srv://...  (MongoDB Atlas)
+        sync: false
+      - key: CLIENT_URL         # https://<your-app>.vercel.app  (comma-separated for multiple)
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+    # PORT is provided by Render automatically — do not set it.
